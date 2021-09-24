@@ -1,20 +1,26 @@
 package com.example.hockeyfileserver.service
 
+import com.example.hockeyfileserver.message.ResponseMessage
 import org.springframework.core.io.Resource
 import org.springframework.core.io.UrlResource
 import org.springframework.stereotype.Service
 import org.springframework.util.FileSystemUtils
 import org.springframework.web.multipart.MultipartFile
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder
 import java.io.IOException
 import java.net.MalformedURLException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.nio.file.StandardCopyOption
+import java.util.*
+import kotlin.collections.ArrayList
 
 
 interface FileUploadService {
     fun init()
-    fun save(file: MultipartFile)
+    fun save(file: MultipartFile): ResponseMessage
+    fun save(files: Array<MultipartFile>): List<ResponseMessage>
     fun load(filename: String): Resource
     fun deleteAll()
 }
@@ -31,12 +37,24 @@ class FileUploadServiceImpl : FileUploadService {
         }
     }
 
-    override fun save(file: MultipartFile) {
+    override fun save(file: MultipartFile): ResponseMessage {
         try {
-            Files.copy(file.inputStream, this.root.resolve(file.originalFilename))
+            Files.copy(file.inputStream, this.root.resolve(file.originalFilename),StandardCopyOption.REPLACE_EXISTING)
         } catch (e: Exception) {
             throw Exception("Could not Store file. Error: " + e.message)
         }
+        val fileURL = ServletUriComponentsBuilder.fromCurrentContextPath().path("/file/").path(file.originalFilename!!).toUriString()
+        return ResponseMessage(fileURL)
+    }
+
+    override fun save(files: Array<MultipartFile>): List<ResponseMessage> {
+        val fileDownloadUrls: MutableList<ResponseMessage> = ArrayList()
+        try {
+            files.forEach { file -> fileDownloadUrls.add(save(file)) }
+        } catch (e: Exception) {
+            throw Exception("Could not Store file. Error: " + e.message)
+        }
+        return fileDownloadUrls
     }
 
     override fun load(filename: String): Resource {
