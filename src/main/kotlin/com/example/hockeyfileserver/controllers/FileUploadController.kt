@@ -3,20 +3,17 @@ package com.example.hockeyfileserver.controllers
 
 import com.example.hockeyfileserver.message.ResponseMessage
 import com.example.hockeyfileserver.service.FileUploadServiceImpl
-import com.example.hockeyfileserver.model.FileUploadInfo
+import org.springframework.core.io.FileSystemResource
 import org.springframework.core.io.Resource
 import org.springframework.http.HttpHeaders
-import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.util.StreamUtils
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
-import org.springframework.web.servlet.mvc.method.annotation.MvcUriComponentsBuilder
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder
 import java.io.IOException
 import java.util.*
-import java.util.stream.Collectors
+import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
-import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 
 @CrossOrigin(origins = ["*"], allowedHeaders = ["*"])
@@ -45,22 +42,32 @@ class FileUploadController(val fileUploadService: FileUploadServiceImpl) {
         ).body(file)
     }
 
-//    @GetMapping("/download/files", produces = ["application/zip"])
-//    fun getFile(@RequestParam name: List<String>, response: HttpServletResponse) {
-//        val zipOut = ZipOutputStream(response.outputStream)
-//        for (fileName in name) {
-//            FileS
-//        }
-//        val file = fileUploadService.load(filename)
-//        return ResponseEntity.ok().header(
-//            HttpHeaders.CONTENT_DISPOSITION,
-//            "attachment; filename=\"" + file.filename + "\""
-//        ).body(file)
-//        zipOut.finish()
-//        zipOut.close()
-//        response.status = HttpServletResponse.SC_OK
-//        response.addHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + zip)
-//    }
+    @Throws(IOException::class)
+    @GetMapping("/download/files", produces = ["application/zip"])
+    fun getCompressedFile(response: HttpServletResponse) {
+        response.contentType = "application/octet-stream";
+        response.setHeader("Content-Disposition", "attachment;filename=download.zip");
+        response.status = HttpServletResponse.SC_OK;
+
+        val fileNames: List<String> = fileUploadService.loadAll("uploads")
+
+
+        val zipOut = ZipOutputStream(response.outputStream)
+        for (file in fileNames) {
+            val resource = FileSystemResource(file)
+            val zipEntry = ZipEntry(resource.filename)
+
+            zipEntry.size = resource.contentLength()
+            zipEntry.time = System.currentTimeMillis()
+
+            zipOut.putNextEntry(zipEntry)
+
+            StreamUtils.copy(resource.inputStream, zipOut)
+            zipOut.closeEntry()
+        }
+        zipOut.finish()
+        zipOut.close()
+    }
 
 //    @GetMapping("/files")
 //    fun getListFiles(): ResponseEntity<List<FileUploadInfo>> {

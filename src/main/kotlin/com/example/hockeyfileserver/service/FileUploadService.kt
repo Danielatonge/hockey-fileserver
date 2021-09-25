@@ -14,7 +14,8 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import java.nio.file.StandardCopyOption
 import java.util.*
-import kotlin.collections.ArrayList
+import java.util.function.Function
+import java.util.stream.Collectors
 
 
 interface FileUploadService {
@@ -76,15 +77,13 @@ class FileUploadServiceImpl : FileUploadService {
         FileSystemUtils.deleteRecursively(root.toFile())
     }
 
-//    fun loadAll(): Stream<Path>? {
-//        return try {
-//            Files.walk(this.root, 1).filter { path: Path -> path != this.root }.map { other: Path? ->
-//                this.root.relativize(
-//                    other
-//                )
-//            }
-//        } catch (e: IOException) {
-//            throw RuntimeException("Could not load the files!")
-//        }
-//    }
+    @Throws(IOException::class)
+    fun loadAll(dir: String?): List<String> {
+        Files.list(Paths.get(dir)).use { stream ->
+            return stream
+                .filter { file -> !Files.isDirectory(file) }
+                .map { obj -> obj.toString() }
+                .collect(Collectors.toList())
+        }
+    }
 }
